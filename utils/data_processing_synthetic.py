@@ -150,7 +150,9 @@ def generate_autoregressive_forecast_dataset(
             params["horizon"] + params["length"] // 2 + random_state.geometric(p=2 / params["length"], size=n_samples)
         )
     else:
-        sequence_lengths = np.array([params["length"] + params["horizon"]] * n_samples)
+        sequence_lengths = np.array([params["length"] + params["horizon"]] * n_samples)  
+        # by default params["length"]=15, params["horizon"]=5, n_samples = 2000 for training set. e.g. [15 + 5] * 2000 is [20 20 20 ... 20 20 20], the len is 2000
+
 
     # Noise profile-dependent settings
     if experiment == "static":
@@ -166,9 +168,10 @@ def generate_autoregressive_forecast_dataset(
         params["periodicity"] = setting
 
     # Create the input features of the generating process
+    # By default "mean": 1, "variance": 2, n_features = 1
     X_gen = [random_state.normal(params["mean"], params["variance"], (sl, n_features)) for sl in sequence_lengths]
 
-    w = np.array([params["memory_factor"] ** k for k in range(np.max(sequence_lengths))])
+    w = np.array([params["memory_factor"] ** k for k in range(np.max(sequence_lengths))])  # for dynamic_sequence_lengths == False, k is in range(0, params["length"] + params["horizon"])
 
     # X_full stores the time series values generated from features X_gen.
     ar = [autoregressive(x, w).reshape(-1, n_features) for x in X_gen]
@@ -212,7 +215,7 @@ def get_raw_sequences(
     raw_sequences = []
     random_state = np.random.RandomState(seed)
 
-    for setting in EXPERIMENT_MODES[experiment]:
+    for setting in EXPERIMENT_MODES[experiment]:  # when experiment='static', setting (EXPERIMENT_MODES[experiment]) is range(1,6)
         if experiment == "sample_complexity":
             n_train = setting
         dataset_file = "processed_data/synthetic-{}-{}-{}-{}{}{}.pkl".format(
@@ -221,10 +224,10 @@ def get_raw_sequences(
             seed,
             n_train,
             ("-dynamic" if dynamic_sequence_lengths else ""),
-            ("-horizon{}".format(horizon) if horizon is not None and horizon != DEFAULT_PARAMETERS["horizon"] else ""),
+            ("-horizon{}".format(horizon) if horizon is not None and horizon != DEFAULT_PARAMETERS["horizon"] else ""),  # DEFAULT_PARAMETERS["horizon"] = 5
         )
 
-        if os.path.isfile(dataset_file) and not recompute_dataset:
+        if os.path.isfile(dataset_file) and not recompute_dataset:  # os.path.isfile(dataset_file) returns True when the path 'dataset_file' is an existing regular file
             with open(dataset_file, "rb") as f:
                 raw_train_sequences, raw_test_sequences = pickle.load(f)
             raw_sequences.append((raw_train_sequences, raw_test_sequences))
@@ -232,10 +235,10 @@ def get_raw_sequences(
             X_train, Y_train, sequence_lengths_train = generate_autoregressive_forecast_dataset(
                 n_samples=n_train,
                 experiment=experiment,
-                setting=setting,
+                setting=setting,  # setting is range(1,6)
                 dynamic_sequence_lengths=dynamic_sequence_lengths,
                 horizon=horizon,
-                random_state=random_state,
+                random_state=random_state,  # random_state = np.random.RandomState(seed)
             )
 
             X_test, Y_test, sequence_lengths_test = generate_autoregressive_forecast_dataset(
@@ -300,7 +303,7 @@ def get_synthetic_dataset(raw_sequences, conformal=True, p_calibration=0.5, seed
     return synthetic_dataset
 
 
-def split_train_dataset(X_train, Y_train, sequence_lengths_train, n_calibration, seed=0):
+def split_train_dataset(X_train, Y_train, sequence_lengths_train, n_calibration=0.5, seed=0):  # n_calibration is equal to p_calibration, by default 0.5
     """ Splits the train dataset into training and calibration sets. """
     n_train = len(X_train)
     idx_perm = np.random.RandomState(seed).permutation(n_train)

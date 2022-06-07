@@ -159,6 +159,12 @@ def run_synthetic_experiments(
             train_dataset, calibration_dataset, test_dataset = get_synthetic_dataset(
                 raw_sequence_dataset, conformal=True, seed=seed
             )
+
+            # print(train_dataset[0])
+            # print output is two tensors of shape [15,1](training part of a sequence) and [5,1](target part of a sequence) respectively,
+            # and 15(which is the sequence_length of training part)
+
+
             model = BASELINES[baseline](
                 embedding_size=params["embedding_size"],
                 horizon=params["horizon"],
