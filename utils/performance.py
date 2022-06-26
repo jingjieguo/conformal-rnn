@@ -12,6 +12,7 @@ import torch
 from models.bjrnn import RNN_uncertainty_wrapper
 from models.dprnn import DPRNN
 from models.qrnn import QRNN
+from models.q_feedforward import QFeedForward
 
 
 def evaluate_cfrnn_performance(model, test_dataset, correct_conformal=True):
@@ -47,11 +48,11 @@ def evaluate_cfrnn_performance(model, test_dataset, correct_conformal=True):
 
 
 def evaluate_performance(model, X_test, Y_test, coverage=0.9):
-    print(type(model))
+    # print(type(model))
     if type(model) is RNN_uncertainty_wrapper:
         y_pred, y_l_approx, y_u_approx = model.predict(X_test, coverage=coverage)
 
-    elif type(model) is QRNN:
+    elif (type(model) is QRNN) or (type(model) is QFeedForward):
         # evaluate quantile loss in test dataset
         lower_quantile_loss, upper_quantile_loss= model.evaluate_quantile_loss(X_test,Y_test,coverage)
         print(f'lower_quantile_loss in performance.py: {lower_quantile_loss}')

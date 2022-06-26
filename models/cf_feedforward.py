@@ -106,7 +106,7 @@ class AuxiliaryForecaster(torch.nn.Module):
         self.horizon = horizon
         self.output_size = output_size
         self.path = path
-        self.input_length = input_length #
+        self.input_length = input_length # input_length is the length of each input time series sample
         self.fc1 = nn.Linear(self.input_length, self.embedding_size)
         self.fc2 = nn.Linear(self.embedding_size, self.embedding_size)
         self.fc3 = nn.Linear(self.embedding_size,  self.horizon * self.output_size)

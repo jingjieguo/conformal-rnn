@@ -9,6 +9,7 @@ import torch
 from models.bjrnn import RNN_uncertainty_wrapper
 from models.cfrnn import CFRNN, AdaptiveCFRNN
 from models.cf_feedforward import CFFeedForward
+from models.q_feedforward import QFeedForward
 from models.dprnn import DPRNN
 from models.qrnn import QRNN
 from models.rnn import RNN
@@ -20,7 +21,8 @@ from utils.data_processing_synthetic import (
 )
 from utils.performance import evaluate_cfrnn_performance, evaluate_performance
 
-BASELINES = {"CFRNN": CFRNN, "AdaptiveCFRNN": AdaptiveCFRNN, "BJRNN": None, "DPRNN": DPRNN, "QRNN": QRNN, "CFFeedForward": CFFeedForward}
+BASELINES = {"CFRNN": CFRNN, "AdaptiveCFRNN": AdaptiveCFRNN, "BJRNN": None, "DPRNN": DPRNN, "QRNN": QRNN, 
+             "CFFeedForward": CFFeedForward, "QFeedForward": QFeedForward}
 
 CONFORMAL_BASELINES = ["CFRNN", "AdaptiveCFRNN", "CFFeedForward"]
 
@@ -201,7 +203,7 @@ def run_synthetic_experiments(
                 model = BASELINES[baseline](**params)
                 # print(f'train_dataset[0], train_dataset[1]: {train_dataset[0].shape, train_dataset[1].shape}')
                 model.fit(train_dataset[0], train_dataset[1])
-            print(f'type(test_dataset) in train_synthetic.py: {type(test_dataset)}')
+            # print(f'type(test_dataset) in train_synthetic.py: {type(test_dataset)}')
             result = evaluate_performance(model, test_dataset[0], test_dataset[1], coverage=params["coverage"])
 
         baseline_results.append(result)
