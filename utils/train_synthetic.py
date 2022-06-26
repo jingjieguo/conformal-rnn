@@ -118,7 +118,8 @@ def run_synthetic_experiments(
     baseline_results = []
 
     torch.manual_seed(seed)
-
+    # print(f'horizon in run_synthetic_experiments: {horizon}')
+    print(f'recompute_dataset in run_synthetic_experiments: {recompute_dataset}')
     raw_sequence_datasets = get_raw_sequences(
         experiment=experiment,
         n_train=n_train,
@@ -197,6 +198,7 @@ def run_synthetic_experiments(
                 model = RNN_uncertainty_wrapper(RNN_model, rnn_mode="RNN")
             else:
                 model = BASELINES[baseline](**params)
+                # print(f'train_dataset[0], train_dataset[1]: {train_dataset[0].shape, train_dataset[1].shape}')
                 model.fit(train_dataset[0], train_dataset[1])
 
             result = evaluate_performance(model, test_dataset[0], test_dataset[1], coverage=params["coverage"])

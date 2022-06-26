@@ -22,6 +22,8 @@ def get_joint_coverages(baseline, experiment, seeds=None):
         results = load_synthetic_results(experiment=experiment, baseline=baseline, seed=seed)
         for result in results:
             dataset_coverages.append(result["Mean joint coverage"] * 100)
+            print(f'result["Upper limit"] in results.py: {result["Upper limit"][0]}')
+            print(f'result["Lower limit"] in results.py: {result["Lower limit"][0]}')
         coverages.append(dataset_coverages)
     coverages = np.array(coverages)
     return coverages.mean(axis=0), coverages.std(axis=0)

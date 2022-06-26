@@ -20,8 +20,8 @@ class QRNN(torch.nn.Module):
         batch_size=150,
         max_steps=50,
         input_size=1,
-        lr=0.01,
-        output_size=1,
+        lr=0.0001,
+        output_size=1,   # output_size is actually the prefiction horizon!!
         embedding_size=20,
         n_layers=1,
         n_steps=50,
@@ -36,7 +36,7 @@ class QRNN(torch.nn.Module):
         self.MAX_STEPS = max_steps
         self.INPUT_SIZE = input_size
         self.LR = lr
-        self.OUTPUT_SIZE = output_size
+        self.OUTPUT_SIZE = output_size  # output_size is actually the prefiction horizon!!
         self.HIDDEN_UNITS = embedding_size
         self.NUM_LAYERS = n_layers
         self.N_STEPS = n_steps
@@ -76,19 +76,37 @@ class QRNN(torch.nn.Module):
         return out
 
     def fit(self, X, Y):
+
+        # X_padded: (2000, 15, 1)
         X_padded, _ = padd_arrays(X, max_length=self.MAX_STEPS)
+
+        ## print(f'X_padded in qrnn fit: {X_padded.shape}')
+
+
+        # Y_padded: (2000, 5), loss_masks: (2000, 5)
         Y_padded, loss_masks = (
             np.squeeze(padd_arrays(Y, max_length=self.OUTPUT_SIZE)[0], axis=2),
             np.squeeze(padd_arrays(Y, max_length=self.OUTPUT_SIZE)[1], axis=2),
         )
 
+        ## print(f'Y_padded in qrnn fit: {Y_padded.shape}')
+        ## print(f'loss_masks in qrnn fit: {loss_masks.shape}')
+
+
         X = Variable(torch.tensor(X_padded), volatile=True).type(torch.FloatTensor)
         Y = Variable(torch.tensor(Y_padded), volatile=True).type(torch.FloatTensor)
         loss_masks = Variable(torch.tensor(loss_masks), volatile=True).type(torch.FloatTensor)
 
+        # self.X: torch.Size([2000, 15, 1])
+        # self.Y: torch.Size([2000, 5])
+        # self.masks: torch.Size([2000, 5])
         self.X = X
         self.Y = Y
         self.masks = loss_masks
+
+        ## print(f'self.X in qrnn fit: {self.X.shape}')
+        ## print(f'self.Y in qrnn fit: {self.Y.shape}')
+        ## print(f'self.masks in qrnn fit: {self.masks.shape}')
 
         optimizer = torch.optim.Adam(self.parameters(), lr=self.LR)  # optimize all rnn parameters
         self.loss_func = quantile_loss
@@ -99,15 +117,19 @@ class QRNN(torch.nn.Module):
                 batch_indexes = np.random.choice(list(range(X.shape[0])), size=self.BATCH_SIZE, replace=True, p=None)
 
                 x = torch.tensor(X[batch_indexes, :, :]).reshape(-1, self.MAX_STEPS, self.INPUT_SIZE).detach()
+
+                # y: torch.Size([100, 5])
                 y = torch.tensor(Y[batch_indexes]).detach()
                 msk = torch.tensor(loss_masks[batch_indexes]).detach()
 
+                # output: torch.Size([100, 5, 2])
                 output = self(x).reshape(-1, self.OUTPUT_SIZE, 2)  # rnn output
 
-                # quantile loss
-                loss = self.loss_func(output[:, :, 0], y, msk, self.q) + self.loss_func(
-                    output[:, :, 1], y, msk, 1 - self.q
-                )
+                ## print(f'output in qrnn fit: {output.shape}')
+                ## print(f'y in qrnn fit: {y.shape}')
+
+                # quantile loss, self.q = 0.05 for lower bound, 1 - self.q = 0.95 for upper bound
+                loss = self.loss_func(output[:, :, 0], y, msk, self.q) + self.loss_func(output[:, :, 1], y, msk, 1 - self.q)
 
                 optimizer.zero_grad()  # clear gradients for this training step
                 loss.backward()  # backpropagation, compute gradients
@@ -127,3 +149,32 @@ class QRNN(torch.nn.Module):
         prediction_1 = unpadd_arrays(predicts_[:, :, 1].detach().numpy(), masks)
 
         return prediction_0, prediction_1
+
+
+    def evaluate_quantile_loss(self, test_dataset: torch.utils.data.Dataset, coverage=0.9):
+        """
+        Evaluates quantile losses of the examples in the test dataset.
+        When the desired coverage is 0.9, then the upper bound is quantile 0.95, the lower bound is quantile 0.05. 
+
+        Args:
+            test_dataset: test dataset
+            coverage: desired cpverage
+        Returns:
+            quantile losses for upper and lower bound
+        """
+        self.eval()
+
+        lower_quantile_losses, upper_quantile_losses  = [], []
+        test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=32)
+
+        for sequences, targets, lengths in test_loader:
+            # batch_intervals: [batch_size, 2, horizon, n_outputs] containing lower and upper bound
+            lower_bound, upper_bound = self.predict(sequences)
+            lower_quantile = (1-coverage)/2  # e.g. coverage = 0.9, lower_quantile should be 0.05
+            upper_quantile = 1 - lower_quantile  # e.g. coverage = 0.9, upper_quantile should be 0.95
+            Y = targets
+            Y_padded, loss_masks = (
+            np.squeeze(padd_arrays(Y, max_length=self.OUTPUT_SIZE)[0], axis=2),
+            np.squeeze(padd_arrays(Y, max_length=self.OUTPUT_SIZE)[1], axis=2),
+            )
+            lower_quantile_loss = 

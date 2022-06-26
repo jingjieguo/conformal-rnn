@@ -228,10 +228,12 @@ def get_raw_sequences(
         )
 
         if os.path.isfile(dataset_file) and not recompute_dataset:  # os.path.isfile(dataset_file) returns True when the path 'dataset_file' is an existing regular file
+            print(f'recompute_dataset in get_raw_sequences: {recompute_dataset}')
             with open(dataset_file, "rb") as f:
                 raw_train_sequences, raw_test_sequences = pickle.load(f)
             raw_sequences.append((raw_train_sequences, raw_test_sequences))
         else:
+            # print(f'horizon in get_raw_sequences: {horizon}')
             X_train, Y_train, sequence_lengths_train = generate_autoregressive_forecast_dataset(
                 n_samples=n_train,
                 experiment=experiment,
@@ -271,10 +273,10 @@ def get_synthetic_dataset(raw_sequences, conformal=True, p_calibration=0.5, seed
             (X_calibration, Y_calibration, sequence_lengths_calibration),
         ) = split_train_dataset(X_train, Y_train, sequence_lengths_train, p_calibration, seed=seed)
 
-        # X: [n_samples, max_seq_len, n_features]
+        # X: [n_samples, max_seq_len, n_features] e.g. [1000, 15, 1]
         X_train_tensor = torch.nn.utils.rnn.pad_sequence(X_train, batch_first=True).float()
 
-        # Y: [n_samples, horizon, n_features]
+        # Y: [n_samples, horizon, n_features] e.g. [1000, 5, 1]
         Y_train_tensor = torch.nn.utils.rnn.pad_sequence(Y_train, batch_first=True).float()
 
         train_dataset = AutoregressiveForecastDataset(X_train_tensor, Y_train_tensor, sequence_lengths_train)

@@ -122,7 +122,7 @@ class AuxiliaryForecaster(torch.nn.Module):
             _, h_n = self.forecaster_rnn(x.float(), h_0)
             c_n = None
 
-        out = self.forecaster_out(h_n).reshape(-1, self.horizon, self.output_size)
+        out = self.forecaster_out(h_n).reshape(-1, self.horizon, self.output_size)  # out: batch_siza, horizon, self.output_size=1
 
         return out, (h_n, c_n)
 
@@ -195,7 +195,7 @@ class CFRNN:
 
     def __init__(
         self,
-        embedding_size,
+        embedding_size,  # by default "embedding_size": 20
         input_size=1,
         output_size=1,
         horizon=1,
@@ -329,7 +329,7 @@ class CFRNN:
         # Collect calibration scores
         self.calibrate(calibration_dataset)
 
-    def predict(self, x, state=None, corrected=True):
+    def predict(self, x, state=None, corrected=True):  #can be used to get the lower and upper bound of the prediction interval
         """
         Forecasts the time series with conformal uncertainty intervals.
 

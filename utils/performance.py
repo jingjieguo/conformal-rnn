@@ -15,6 +15,9 @@ from models.qrnn import QRNN
 
 
 def evaluate_cfrnn_performance(model, test_dataset, correct_conformal=True):
+    # Todo: add quantile loss as a metric for evaluation
+
+
     independent_coverages, joint_coverages, intervals = model.evaluate_coverage(
         test_dataset, corrected=correct_conformal
     )
@@ -39,12 +42,16 @@ def evaluate_cfrnn_performance(model, test_dataset, correct_conformal=True):
     return results
 
 
-def evaluate_performance(model, X_test, Y_test, coverage=0.9):
+def evaluate_performance(model, test_dataset, X_test, Y_test, coverage=0.9):
+    print(type(model))
     if type(model) is RNN_uncertainty_wrapper:
         y_pred, y_l_approx, y_u_approx = model.predict(X_test, coverage=coverage)
 
     elif type(model) is QRNN:
-        y_u_approx, y_l_approx = model.predict(X_test)
+        # y_u_approx, y_l_approx = model.predict(X_test)
+        y_l_approx, y_u_approx = model.predict(X_test)
+        # print(f'y_u_approx in performance.py: {y_u_approx[0]}')
+        # print(f'y_l_approx in performance.py: {y_l_approx[0]}')
         y_pred = [(y_l_approx[k] + y_u_approx[k]) / 2 for k in range(len(y_u_approx))]
 
         y_pred = [x.reshape(-1, 1) for x in y_pred]
