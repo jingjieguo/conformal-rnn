@@ -151,30 +151,66 @@ class QRNN(torch.nn.Module):
         return prediction_0, prediction_1
 
 
-    def evaluate_quantile_loss(self, test_dataset: torch.utils.data.Dataset, coverage=0.9):
+
+    def evaluate_quantile_loss(self, X, Y, coverage=0.9):
         """
         Evaluates quantile losses of the examples in the test dataset.
         When the desired coverage is 0.9, then the upper bound is quantile 0.95, the lower bound is quantile 0.05. 
 
         Args:
-            test_dataset: test dataset
+            X: input samples in test dataset
+            Y: ground truth in test dataset
             coverage: desired cpverage
         Returns:
             quantile losses for upper and lower bound
         """
-        self.eval()
+        
+        lower_quantile = (1-coverage)/2  # e.g. coverage = 0.9, lower_quantile should be 0.05
+        upper_quantile = 1 - lower_quantile  # e.g. coverage = 0.9, upper_quantile should be 0.95
 
-        lower_quantile_losses, upper_quantile_losses  = [], []
-        test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=32)
-
-        for sequences, targets, lengths in test_loader:
-            # batch_intervals: [batch_size, 2, horizon, n_outputs] containing lower and upper bound
-            lower_bound, upper_bound = self.predict(sequences)
-            lower_quantile = (1-coverage)/2  # e.g. coverage = 0.9, lower_quantile should be 0.05
-            upper_quantile = 1 - lower_quantile  # e.g. coverage = 0.9, upper_quantile should be 0.95
-            Y = targets
-            Y_padded, loss_masks = (
+        if type(X) is list:
+            X_, masks = padd_arrays(X, max_length=self.MAX_STEPS)
+        else:
+            X_, masks = padd_arrays(X, max_length=self.MAX_STEPS)
+        
+        Y_padded, loss_masks = (
             np.squeeze(padd_arrays(Y, max_length=self.OUTPUT_SIZE)[0], axis=2),
             np.squeeze(padd_arrays(Y, max_length=self.OUTPUT_SIZE)[1], axis=2),
-            )
-            lower_quantile_loss = 
+        )
+
+        X_test = Variable(torch.tensor(X_), volatile=True).type(torch.FloatTensor).detach()
+        Y = Variable(torch.tensor(Y_padded), volatile=True).type(torch.FloatTensor).detach()
+        loss_masks = Variable(torch.tensor(loss_masks), volatile=True).type(torch.FloatTensor).detach()
+        with torch.no_grad():
+            predicts_ = self(X_test).view(-1, self.OUTPUT_SIZE, 2)
+            lower_bound = predicts_[:,:,0]
+            upper_bound = predicts_[:,:,1]
+            lower_quantile_loss = quantile_loss(lower_bound, Y, loss_masks, lower_quantile)
+            upper_quantile_loss = quantile_loss(upper_bound, Y, loss_masks, upper_quantile)
+
+        return lower_quantile_loss, upper_quantile_loss
+
+
+
+
+
+        # self.eval()
+
+        # lower_quantile_losses, upper_quantile_losses  = [], []
+        # test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=32)
+
+        # for sequences, targets, lengths in test_loader:
+        #     # batch_intervals: [batch_size, 2, horizon, n_outputs] containing lower and upper bound
+        #     lower_bound, upper_bound = self.predict(sequences)
+        #     lower_quantile = (1-coverage)/2  # e.g. coverage = 0.9, lower_quantile should be 0.05
+        #     upper_quantile = 1 - lower_quantile  # e.g. coverage = 0.9, upper_quantile should be 0.95
+        #     Y = targets
+        #     Y_padded, loss_masks = (
+        #     np.squeeze(padd_arrays(Y, max_length=self.OUTPUT_SIZE)[0], axis=2),
+        #     np.squeeze(padd_arrays(Y, max_length=self.OUTPUT_SIZE)[1], axis=2),
+        #     )
+        #     # output = self(sequences).reshape(-1, self.OUTPUT_SIZE, 2)  # rnn output
+
+        #     lower_quantile_loss = quantile_loss(lower_bound, Y_padded, loss_masks, lower_quantile)
+        #     lower_quantile_losses.append(lower_quantile_loss)
+        # return lower_quantile_losses

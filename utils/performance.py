@@ -16,6 +16,10 @@ from models.qrnn import QRNN
 
 def evaluate_cfrnn_performance(model, test_dataset, correct_conformal=True):
     # Todo: add quantile loss as a metric for evaluation
+    lower_quantile_loss, upper_quantile_loss= model.evaluate_quantile_loss(test_dataset, corrected=correct_conformal)
+    print(f'lower_quantile_loss in performance.py: {lower_quantile_loss}')
+    print(f'upper_quantile_loss in performance.py: {upper_quantile_loss}')
+
 
 
     independent_coverages, joint_coverages, intervals = model.evaluate_coverage(
@@ -42,12 +46,17 @@ def evaluate_cfrnn_performance(model, test_dataset, correct_conformal=True):
     return results
 
 
-def evaluate_performance(model, test_dataset, X_test, Y_test, coverage=0.9):
+def evaluate_performance(model, X_test, Y_test, coverage=0.9):
     print(type(model))
     if type(model) is RNN_uncertainty_wrapper:
         y_pred, y_l_approx, y_u_approx = model.predict(X_test, coverage=coverage)
 
     elif type(model) is QRNN:
+        # evaluate quantile loss in test dataset
+        lower_quantile_loss, upper_quantile_loss= model.evaluate_quantile_loss(X_test,Y_test,coverage)
+        print(f'lower_quantile_loss in performance.py: {lower_quantile_loss}')
+        print(f'upper_quantile_loss in performance.py: {upper_quantile_loss}')
+
         # y_u_approx, y_l_approx = model.predict(X_test) is wrong, since the first element is the lower bound and the second element is the upper bound
         y_l_approx, y_u_approx = model.predict(X_test)
         # print(f'y_u_approx in performance.py: {y_u_approx[0]}')

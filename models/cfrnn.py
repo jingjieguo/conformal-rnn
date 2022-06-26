@@ -6,6 +6,11 @@
 import os.path
 
 import torch
+import numpy as np
+from torch.autograd import Variable
+from utils.data_padding import padd_arrays, unpadd_arrays
+
+from models.losses import quantile_loss  # for evaluating quantile losses
 
 
 def coverage(intervals, target):
@@ -341,20 +346,68 @@ class CFRNN:
         Returns:
             tensor with lower and upper forecast bounds; hidden RNN state
         """
+        with torch.no_grad():
+            out, hidden = self.auxiliary_forecaster(x, state)
 
-        out, hidden = self.auxiliary_forecaster(x, state)
-
-        if not corrected:
-            # [batch_size, horizon, n_outputs]
-            lower = out - self.critical_calibration_scores
-            upper = out + self.critical_calibration_scores
-        else:
-            # [batch_size, horizon, n_outputs]
-            lower = out - self.corrected_critical_calibration_scores
-            upper = out + self.corrected_critical_calibration_scores
+            if not corrected:
+                # [batch_size, horizon, n_outputs]
+                lower = out - self.critical_calibration_scores
+                upper = out + self.critical_calibration_scores
+            else:
+                # [batch_size, horizon, n_outputs]
+                lower = out - self.corrected_critical_calibration_scores
+                upper = out + self.corrected_critical_calibration_scores
 
         # [batch_size, 2, horizon, n_outputs]
         return torch.stack((lower, upper), dim=1), hidden
+
+
+    def evaluate_quantile_loss(self, test_dataset: torch.utils.data.Dataset, corrected=True):
+        """
+        Evaluates quantile losses of the examples in the test dataset.
+        Assume the prediction interval is symmetric to quantile 0.5. 
+        For example, self.alpha = 0.1, then the desired coverage is 0.9. Assume that the upper bound is quantile 0.95, the lower bound is quantile 0.05. 
+
+        Args:
+            test_dataset: test dataset
+            corrected: whether to use the Bonferroni-corrected critical
+            calibration scores
+        Returns:
+            quantile losses for upper and lower bound
+        """
+        self.auxiliary_forecaster.eval()
+
+        lower_quantile_losses, upper_quantile_losses  = [], []
+        test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=32)
+        with torch.no_grad():
+            for sequences, targets, lengths in test_loader:
+                # batch_intervals: [batch_size, 2, horizon, n_outputs] containing lower and upper bound
+                batch_intervals, _ = self.predict(sequences, corrected=corrected)
+                lower_bound = batch_intervals[:,0,:,:] # lower_bound.shape is [batch_size, horizon, n_outputs], e.g. [32, 5, 1]
+                upper_bound = batch_intervals[:,0,:,:]
+                lower_quantile = self.alpha/2  # e.g. self.alpha = 0.1, lower_quantile should be 0.05
+                upper_quantile = 1 - self.alpha/2  # e.g. self.alpha = 0.1, upper_quantile should be 0.95
+                Y = targets # Y.shape is [batch_size, horizon, n_outputs], e.g. [32, 5, 1]
+                Y_padded, loss_masks = (
+                np.squeeze(padd_arrays(Y, max_length=self.horizon)[0], axis=2),
+                np.squeeze(padd_arrays(Y, max_length=self.horizon)[1], axis=2),
+                )
+                Y = Variable(torch.tensor(Y_padded), volatile=True).type(torch.FloatTensor).detach()
+                loss_masks = Variable(torch.tensor(loss_masks), volatile=True).type(torch.FloatTensor).detach()
+
+                lower_quantile_loss = quantile_loss(lower_bound.squeeze(), Y, loss_masks, lower_quantile)
+                upper_quantile_loss = quantile_loss(upper_bound.squeeze(), Y, loss_masks, upper_quantile)
+                lower_quantile_losses.append(lower_quantile_loss)
+                upper_quantile_losses.append(upper_quantile_loss)
+
+                mean_lower_quantile_losses = sum(lower_quantile_losses) / len(lower_quantile_losses)
+                mean_upper_quantile_losses = sum(upper_quantile_losses) / len(upper_quantile_losses)
+
+
+        return mean_lower_quantile_losses, mean_upper_quantile_losses
+
+
+
 
     def evaluate_coverage(self, test_dataset: torch.utils.data.Dataset, corrected=True):
         """

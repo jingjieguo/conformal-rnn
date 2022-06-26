@@ -25,7 +25,7 @@ CONFORMAL_BASELINES = ["CFRNN", "AdaptiveCFRNN"]
 
 DEFAULT_SYNTHETIC_TRAINING_PARAMETERS = {
     "input_size": 1,  # RNN parameters
-    "epochs": 10,
+    "epochs": 5,
     "normaliser_epochs": 1000,
     "n_steps": 500,
     "batch_size": 100,
@@ -155,7 +155,7 @@ def run_synthetic_experiments(
         params["output_size"] = horizon if horizon else DEFAULT_PARAMETERS["horizon"]
 
         if baseline in CONFORMAL_BASELINES:
-            params["epochs"] = 1000
+            params["epochs"] = 150
 
             train_dataset, calibration_dataset, test_dataset = get_synthetic_dataset(
                 raw_sequence_dataset, conformal=True, seed=seed
@@ -200,7 +200,7 @@ def run_synthetic_experiments(
                 model = BASELINES[baseline](**params)
                 # print(f'train_dataset[0], train_dataset[1]: {train_dataset[0].shape, train_dataset[1].shape}')
                 model.fit(train_dataset[0], train_dataset[1])
-
+            print(f'type(test_dataset) in train_synthetic.py: {type(test_dataset)}')
             result = evaluate_performance(model, test_dataset[0], test_dataset[1], coverage=params["coverage"])
 
         baseline_results.append(result)
