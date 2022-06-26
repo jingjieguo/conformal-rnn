@@ -48,7 +48,7 @@ def evaluate_performance(model, test_dataset, X_test, Y_test, coverage=0.9):
         y_pred, y_l_approx, y_u_approx = model.predict(X_test, coverage=coverage)
 
     elif type(model) is QRNN:
-        # y_u_approx, y_l_approx = model.predict(X_test)
+        # y_u_approx, y_l_approx = model.predict(X_test) is wrong, since the first element is the lower bound and the second element is the upper bound
         y_l_approx, y_u_approx = model.predict(X_test)
         # print(f'y_u_approx in performance.py: {y_u_approx[0]}')
         # print(f'y_l_approx in performance.py: {y_l_approx[0]}')
