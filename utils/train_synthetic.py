@@ -8,6 +8,7 @@ import torch
 
 from models.bjrnn import RNN_uncertainty_wrapper
 from models.cfrnn import CFRNN, AdaptiveCFRNN
+from models.cf_feedforward import CFFeedForward
 from models.dprnn import DPRNN
 from models.qrnn import QRNN
 from models.rnn import RNN
@@ -19,9 +20,9 @@ from utils.data_processing_synthetic import (
 )
 from utils.performance import evaluate_cfrnn_performance, evaluate_performance
 
-BASELINES = {"CFRNN": CFRNN, "AdaptiveCFRNN": AdaptiveCFRNN, "BJRNN": None, "DPRNN": DPRNN, "QRNN": QRNN}
+BASELINES = {"CFRNN": CFRNN, "AdaptiveCFRNN": AdaptiveCFRNN, "BJRNN": None, "DPRNN": DPRNN, "QRNN": QRNN, "CFFeedForward": CFFeedForward}
 
-CONFORMAL_BASELINES = ["CFRNN", "AdaptiveCFRNN"]
+CONFORMAL_BASELINES = ["CFRNN", "AdaptiveCFRNN", "CFFeedForward"]
 
 DEFAULT_SYNTHETIC_TRAINING_PARAMETERS = {
     "input_size": 1,  # RNN parameters
@@ -119,7 +120,7 @@ def run_synthetic_experiments(
 
     torch.manual_seed(seed)
     # print(f'horizon in run_synthetic_experiments: {horizon}')
-    print(f'recompute_dataset in run_synthetic_experiments: {recompute_dataset}')
+    # print(f'recompute_dataset in run_synthetic_experiments: {recompute_dataset}')
     raw_sequence_datasets = get_raw_sequences(
         experiment=experiment,
         n_train=n_train,
